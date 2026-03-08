@@ -9,15 +9,87 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:k-market-watch.watchlist"
+  ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "k-market-watch",
+          "title": "K-Market Watch",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "k-market-watch": [
+        {
+          "id": "k-market-watch.watchlist",
+          "name": "관심 종목"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "k-market-watch.helloWorld",
-        "title": "Hello World"
+        "command": "k-market-watch.addStock",
+        "title": "종목 추가",
+        "icon": "$(add)"
+      },
+      {
+        "command": "k-market-watch.removeStock",
+        "title": "종목 삭제",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "k-market-watch.refreshData",
+        "title": "새로고침",
+        "icon": "$(refresh)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "k-market-watch.addStock",
+          "when": "view == k-market-watch.watchlist",
+          "group": "navigation"
+        },
+        {
+          "command": "k-market-watch.refreshData",
+          "when": "view == k-market-watch.watchlist",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "k-market-watch.removeStock",
+          "when": "view == k-market-watch.watchlist && viewItem == stockItem",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "K-Market Watch",
+      "properties": {
+        "k-market-watch.refreshInterval": {
+          "type": "number",
+          "default": 5,
+          "minimum": 3,
+          "description": "데이터 갱신 주기 (초)"
+        },
+        "k-market-watch.showKospi": {
+          "type": "boolean",
+          "default": true,
+          "description": "Status Bar에 KOSPI 지수 표시"
+        },
+        "k-market-watch.showKosdaq": {
+          "type": "boolean",
+          "default": true,
+          "description": "Status Bar에 KOSDAQ 지수 표시"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",

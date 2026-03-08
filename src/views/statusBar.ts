@@ -1,0 +1,45 @@
+import * as vscode from 'vscode';
+import { MarketIndex, PriceDirection } from '../models/types';
+
+export class StatusBarManager implements vscode.Disposable {
+	private kospiItem: vscode.StatusBarItem;
+	private kosdaqItem: vscode.StatusBarItem;
+
+	constructor() {
+		this.kospiItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+		this.kosdaqItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+	}
+
+	updateIndex(index: MarketIndex): void {
+		const item = index.code === 'KOSPI' ? this.kospiItem : this.kosdaqItem;
+		const arrow = index.direction === PriceDirection.RISING ? '▲' : index.direction === PriceDirection.FALLING ? '▼' : '-';
+		const sign = index.changeRate >= 0 ? '+' : '';
+		item.text = `$(graph-line) ${index.name} ${index.value.toLocaleString('ko-KR', { minimumFractionDigits: 2 })} ${arrow}${sign}${index.changeRate}%`;
+
+		if (index.direction === PriceDirection.RISING) {
+			item.color = '#FF0000';
+		} else if (index.direction === PriceDirection.FALLING) {
+			item.color = '#4488FF';
+		} else {
+			item.color = undefined;
+		}
+	}
+
+	updateVisibility(showKospi: boolean, showKosdaq: boolean): void {
+		if (showKospi) {
+			this.kospiItem.show();
+		} else {
+			this.kospiItem.hide();
+		}
+		if (showKosdaq) {
+			this.kosdaqItem.show();
+		} else {
+			this.kosdaqItem.hide();
+		}
+	}
+
+	dispose(): void {
+		this.kospiItem.dispose();
+		this.kosdaqItem.dispose();
+	}
+}
