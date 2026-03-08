@@ -4,13 +4,18 @@ import { MarketIndex, PriceDirection } from '../models/types';
 export class StatusBarManager implements vscode.Disposable {
 	private kospiItem: vscode.StatusBarItem;
 	private kosdaqItem: vscode.StatusBarItem;
+	private indexData: Map<string, MarketIndex> = new Map();
 
 	constructor() {
 		this.kospiItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+		this.kospiItem.command = 'k-market-watch.showKospiDetail';
 		this.kosdaqItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+		this.kosdaqItem.command = 'k-market-watch.showKosdaqDetail';
 	}
 
 	updateIndex(index: MarketIndex): void {
+		this.indexData.set(index.code, index);
+
 		const item = index.code === 'KOSPI' ? this.kospiItem : this.kosdaqItem;
 		const arrow = index.direction === PriceDirection.RISING ? '▲' : index.direction === PriceDirection.FALLING ? '▼' : '-';
 		const sign = index.changeRate >= 0 ? '+' : '';
@@ -23,6 +28,10 @@ export class StatusBarManager implements vscode.Disposable {
 		} else {
 			item.color = undefined;
 		}
+	}
+
+	getIndexData(code: string): MarketIndex | undefined {
+		return this.indexData.get(code);
 	}
 
 	updateVisibility(showKospi: boolean, showKosdaq: boolean): void {

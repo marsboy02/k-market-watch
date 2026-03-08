@@ -4,6 +4,7 @@ import { StockTreeProvider } from './providers/stockTreeProvider';
 import { StatusBarManager } from './views/statusBar';
 import { MarketDataService } from './services/marketDataService';
 import { searchStock } from './services/naverFinanceApi';
+import { PriceDirection } from './models/types';
 
 const DEFAULT_WATCHLIST = [
 	{ code: '005930', name: '삼성전자' },
@@ -103,6 +104,45 @@ export function activate(context: vscode.ExtensionContext) {
 		dataService.start();
 	});
 
+	const showIndexDetail = (code: string) => {
+		const data = statusBar.getIndexData(code);
+		if (!data) {
+			vscode.window.showInformationMessage(`${code} 데이터가 아직 로드되지 않았습니다.`);
+			return;
+		}
+
+		const arrow = data.direction === PriceDirection.RISING ? '▲' : data.direction === PriceDirection.FALLING ? '▼' : '-';
+		const sign = data.changeValue >= 0 ? '+' : '';
+		const rateSign = data.changeRate >= 0 ? '+' : '';
+		const fmt = (v: number) => v.toLocaleString('ko-KR', { minimumFractionDigits: 2 });
+		const volFmt = (v: number) => v.toLocaleString('ko-KR');
+		const valueFmt = (v: number) => {
+			if (v >= 1_0000_0000) { return (v / 1_0000_0000).toFixed(2) + '조'; }
+			if (v >= 10000) { return (v / 10000).toFixed(0) + '억'; }
+			return v.toLocaleString('ko-KR');
+		};
+
+		const items: vscode.QuickPickItem[] = [
+			{ label: `${data.name}`, kind: vscode.QuickPickItemKind.Separator },
+			{ label: `$(graph-line) 현재가`, description: `${fmt(data.value)} ${arrow}${sign}${fmt(data.changeValue)} (${rateSign}${data.changeRate}%)` },
+			{ label: `$(arrow-up) 시가`, description: fmt(data.openPrice) },
+			{ label: `$(triangle-up) 고가`, description: fmt(data.highPrice) },
+			{ label: `$(triangle-down) 저가`, description: fmt(data.lowPrice) },
+			{ label: `$(pulse) 거래량`, description: volFmt(data.volume) },
+			{ label: `$(credit-card) 거래대금`, description: valueFmt(data.tradingValue) },
+			{ label: `$(info) 상태`, description: data.marketStatus },
+			{ label: `$(clock) 기준시각`, description: data.localTradedAt },
+		];
+
+		vscode.window.showQuickPick(items, {
+			title: `${data.name} 상세 정보`,
+			placeHolder: '지수 상세 정보',
+		});
+	};
+
+	const showKospiDetailCmd = vscode.commands.registerCommand('k-market-watch.showKospiDetail', () => showIndexDetail('KOSPI'));
+	const showKosdaqDetailCmd = vscode.commands.registerCommand('k-market-watch.showKosdaqDetail', () => showIndexDetail('KOSDAQ'));
+
 	// Configuration change listener
 	const configListener = vscode.workspace.onDidChangeConfiguration(e => {
 		if (e.affectsConfiguration('k-market-watch')) {
@@ -110,7 +150,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	context.subscriptions.push(treeView, statusBar, dataService, addStockCmd, removeStockCmd, refreshCmd, configListener);
+	context.subscriptions.push(treeView, statusBar, dataService, addStockCmd, removeStockCmd, refreshCmd, showKospiDetailCmd, showKosdaqDetailCmd, configListener);
 
 	// Start
 	dataService.start();

@@ -66,6 +66,12 @@ export async function fetchIndex(code: string): Promise<MarketIndex> {
 		changeValue: parseFloat(d.compareToPreviousClosePriceRaw),
 		direction: parseDirection(d.compareToPreviousPrice.code),
 		marketStatus: d.marketStatus,
+		openPrice: parseFloat(d.openPriceRaw),
+		highPrice: parseFloat(d.highPriceRaw),
+		lowPrice: parseFloat(d.lowPriceRaw),
+		volume: parseFloat(d.accumulatedTradingVolumeRaw),
+		tradingValue: parseFloat(d.accumulatedTradingValueRaw),
+		localTradedAt: d.localTradedAt,
 	};
 }
 

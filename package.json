@@ -46,6 +46,14 @@
         "command": "k-market-watch.refreshData",
         "title": "새로고침",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "k-market-watch.showKospiDetail",
+        "title": "KOSPI 상세 정보"
+      },
+      {
+        "command": "k-market-watch.showKosdaqDetail",
+        "title": "KOSDAQ 상세 정보"
       }
     ],
     "menus": {

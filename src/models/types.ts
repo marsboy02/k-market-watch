@@ -65,6 +65,12 @@ export interface MarketIndex {
 	changeValue: number;
 	direction: PriceDirection;
 	marketStatus: string;
+	openPrice: number;
+	highPrice: number;
+	lowPrice: number;
+	volume: number;
+	tradingValue: number;
+	localTradedAt: string;
 }
 
 export interface WatchlistEntry {
