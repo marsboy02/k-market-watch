@@ -83,3 +83,28 @@ export async function searchStock(code: string): Promise<WatchlistEntry | null> 
 		return null;
 	}
 }
+
+export interface SearchResult {
+	code: string;
+	name: string;
+	market: string;
+}
+
+export async function searchStockByName(query: string): Promise<SearchResult[]> {
+	const encoded = encodeURIComponent(query);
+	const url = `https://ac.stock.naver.com/ac?q=${encoded}&target=stock`;
+	const body = await httpGet(url);
+	const data = JSON.parse(body);
+
+	const items: SearchResult[] = [];
+	if (data.items && data.items.length > 0) {
+		for (const item of data.items) {
+			items.push({
+				code: item.code,
+				name: item.name,
+				market: item.typeName ?? item.typeCode ?? '',
+			});
+		}
+	}
+	return items;
+}

@@ -19,7 +19,8 @@ export class StatusBarManager implements vscode.Disposable {
 		const item = index.code === 'KOSPI' ? this.kospiItem : this.kosdaqItem;
 		const arrow = index.direction === PriceDirection.RISING ? '▲' : index.direction === PriceDirection.FALLING ? '▼' : '-';
 		const sign = index.changeRate >= 0 ? '+' : '';
-		item.text = `$(graph-line) ${index.name} ${index.value.toLocaleString('ko-KR', { minimumFractionDigits: 2 })} ${arrow}${sign}${index.changeRate}%`;
+		const displayName = this.getDisplayName(index);
+		item.text = `$(graph-line) ${displayName} ${index.value.toLocaleString('ko-KR', { minimumFractionDigits: 2 })} ${arrow}${sign}${index.changeRate}%`;
 
 		if (index.direction === PriceDirection.RISING) {
 			item.color = '#FF0000';
@@ -28,6 +29,15 @@ export class StatusBarManager implements vscode.Disposable {
 		} else {
 			item.color = undefined;
 		}
+	}
+
+	private getDisplayName(index: MarketIndex): string {
+		const config = vscode.workspace.getConfiguration('k-market-watch');
+		const lang = config.get<string>('indexNameLanguage', 'korean');
+		if (lang === 'english') {
+			return index.code;
+		}
+		return index.name;
 	}
 
 	getIndexData(code: string): MarketIndex | undefined {

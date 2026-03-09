@@ -95,6 +95,12 @@
           "type": "boolean",
           "default": true,
           "description": "Status Bar에 KOSDAQ 지수 표시"
+        },
+        "k-market-watch.indexNameLanguage": {
+          "type": "string",
+          "enum": ["korean", "english"],
+          "default": "korean",
+          "description": "지수 이름 표기 언어 (korean: 코스피/코스닥, english: KOSPI/KOSDAQ)"
         }
       }
     }
