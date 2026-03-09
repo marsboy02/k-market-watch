@@ -1,3 +1,8 @@
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <polyline points="2,18 7,13 11,16 16,8 22,4" stroke="#C5C5C5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 원 -->
+  <circle cx="12" cy="12" r="10" />
+  <!-- 상승 트렌드 화살표 -->
+  <polyline points="6,16 10,13 13,16 18,8" />
+  <!-- 화살표 머리 -->
+  <polyline points="14,8 18,8 18,12" />
 </svg>

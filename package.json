@@ -3,6 +3,13 @@
   "displayName": "K-Market Watch",
   "description": "Korean stock market monitoring tools in vscode",
   "version": "0.0.1",
+  "publisher": "marsboy02",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marsboy02/k-market-watch"
+  },
+  "license": "MIT",
+  "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.109.0"
   },
@@ -82,8 +89,8 @@
       "properties": {
         "k-market-watch.refreshInterval": {
           "type": "number",
-          "default": 5,
-          "minimum": 3,
+          "default": 15,
+          "minimum": 5,
           "description": "데이터 갱신 주기 (초)"
         },
         "k-market-watch.showKospi": {
