@@ -35,7 +35,7 @@ Activity Bar의 K-Market Watch 패널에서 관심 종목을 관리합니다.
 
 | 설정 | 타입 | 기본값 | 설명 |
 |------|------|--------|------|
-| `k-market-watch.refreshInterval` | `number` | `5` | 데이터 갱신 주기 (초, 최소 3초) |
+| `k-market-watch.refreshInterval` | `number` | `15` | 데이터 갱신 주기 (초, 최소 5초) |
 | `k-market-watch.showKospi` | `boolean` | `true` | Status Bar에 KOSPI 지수 표시 |
 | `k-market-watch.showKosdaq` | `boolean` | `true` | Status Bar에 KOSDAQ 지수 표시 |
 | `k-market-watch.indexNameLanguage` | `string` | `korean` | 지수 이름 표기 언어 (`korean`: 코스피/코스닥, `english`: KOSPI/KOSDAQ) |
