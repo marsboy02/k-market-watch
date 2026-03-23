@@ -3,7 +3,7 @@ import { StorageService } from './services/storageService';
 import { StockTreeProvider } from './providers/stockTreeProvider';
 import { StatusBarManager } from './views/statusBar';
 import { MarketDataService } from './services/marketDataService';
-import { searchStock, searchStockByName } from './services/naverFinanceApi';
+import { searchStock, searchStockByName } from './services/yahooFinanceApi';
 import { PriceDirection } from './models/types';
 
 const DEFAULT_WATCHLIST = [

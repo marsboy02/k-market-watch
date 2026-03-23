@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { fetchStock, fetchIndex } from './naverFinanceApi';
+import { fetchStocks, fetchIndices } from './yahooFinanceApi';
 import { StorageService } from './storageService';
 import { StockTreeProvider } from '../providers/stockTreeProvider';
 import { StatusBarManager } from '../views/statusBar';
@@ -62,41 +62,28 @@ export class MarketDataService implements vscode.Disposable {
 			// 첫 로드 시에는 데이터를 가져옴
 		}
 
-		const stockPromises = watchlist.map(entry =>
-			fetchStock(entry.code).catch(err => {
-				console.error(`[K-Market Watch] Failed to fetch ${entry.code}:`, err);
-				return null;
-			})
-		);
-
-		const indexPromises = [
-			fetchIndex('KOSPI').catch(err => {
-				console.error('[K-Market Watch] Failed to fetch KOSPI:', err);
-				return null;
-			}),
-			fetchIndex('KOSDAQ').catch(err => {
-				console.error('[K-Market Watch] Failed to fetch KOSDAQ:', err);
-				return null;
-			}),
-		];
+		const codes = watchlist.map(entry => entry.code);
 
 		const results = await Promise.allSettled([
-			Promise.all(stockPromises),
-			Promise.all(indexPromises),
+			fetchStocks(codes).catch(err => {
+				console.error('[K-Market Watch] Failed to fetch stocks:', err);
+				return [];
+			}),
+			fetchIndices().catch(err => {
+				console.error('[K-Market Watch] Failed to fetch indices:', err);
+				return [];
+			}),
 		]);
 
 		// Update stocks
 		if (results[0].status === 'fulfilled') {
-			const stocks = results[0].value.filter((s): s is NonNullable<typeof s> => s !== null);
-			this.treeProvider.updateStockData(stocks);
+			this.treeProvider.updateStockData(results[0].value);
 		}
 
 		// Update indices
 		if (results[1].status === 'fulfilled') {
 			for (const idx of results[1].value) {
-				if (idx) {
-					this.statusBar.updateIndex(idx);
-				}
+				this.statusBar.updateIndex(idx);
 			}
 		}
 	}

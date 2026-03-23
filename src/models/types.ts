@@ -4,43 +4,6 @@ export enum PriceDirection {
 	FALLING = '5',
 }
 
-export interface NaverCompareToPreviousPrice {
-	code: string;
-	text: string;
-	name: string;
-}
-
-export interface NaverStockData {
-	itemCode: string;
-	stockName: string;
-	closePrice: string;
-	closePriceRaw: string;
-	compareToPreviousClosePrice: string;
-	compareToPreviousClosePriceRaw: string;
-	compareToPreviousPrice: NaverCompareToPreviousPrice;
-	fluctuationsRatio: string;
-	fluctuationsRatioRaw: string;
-	openPrice: string;
-	openPriceRaw: string;
-	highPrice: string;
-	highPriceRaw: string;
-	lowPrice: string;
-	lowPriceRaw: string;
-	accumulatedTradingVolume: string;
-	accumulatedTradingVolumeRaw: string;
-	accumulatedTradingValue: string;
-	accumulatedTradingValueRaw: string;
-	marketStatus: string;
-	localTradedAt: string;
-	symbolCode: string;
-}
-
-export interface NaverRealtimeResponse {
-	pollingInterval: number;
-	datas: NaverStockData[];
-	time: string;
-}
-
 export interface StockItem {
 	code: string;
 	name: string;

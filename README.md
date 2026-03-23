@@ -52,7 +52,7 @@ Activity Bar의 K-Market Watch 패널에서 관심 종목을 관리합니다.
 
 ## Data Source
 
-[네이버 금융](https://finance.naver.com) 실시간 시세 API를 사용합니다.
+[Yahoo Finance](https://finance.yahoo.com) API를 사용하여 한국 주식 시세를 조회합니다.
 
 - 장 운영 시간: 평일 09:00 ~ 15:30 (KST)
 - 장 마감 후에도 마지막 시세 데이터를 표시합니다
