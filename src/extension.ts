@@ -3,7 +3,7 @@ import { StorageService } from './services/storageService';
 import { StockTreeProvider } from './providers/stockTreeProvider';
 import { StatusBarManager } from './views/statusBar';
 import { MarketDataService } from './services/marketDataService';
-import { searchStock, searchStockByName } from './services/yahooFinanceApi';
+import { searchStock } from './services/yahooFinanceApi';
 import { PriceDirection } from './models/types';
 
 const DEFAULT_WATCHLIST = [
@@ -61,8 +61,15 @@ export function activate(context: vscode.ExtensionContext) {
 	// Commands
 	const addStockCmd = vscode.commands.registerCommand('k-market-watch.addStock', async () => {
 		const input = await vscode.window.showInputBox({
-			prompt: '종목명 또는 종목코드를 입력하세요',
-			placeHolder: '예: 삼성전자, 005930',
+			prompt: '종목코드 6자리를 입력하세요',
+			placeHolder: '예: 005930 (삼성전자), 000660 (SK하이닉스)',
+			validateInput: (value) => {
+				const trimmed = value.trim();
+				if (trimmed && !/^\d{1,6}$/.test(trimmed)) {
+					return '숫자 6자리 종목코드를 입력하세요';
+				}
+				return undefined;
+			},
 		});
 		if (!input) {
 			return;
@@ -71,53 +78,24 @@ export function activate(context: vscode.ExtensionContext) {
 		const query = input.trim();
 
 		try {
-			const isCode = /^\d{6}$/.test(query);
-
-			if (isCode) {
-				const result = await searchStock(query);
-				if (!result) {
-					vscode.window.showWarningMessage(`종목코드 "${query}"를 찾을 수 없습니다.`);
-					return;
-				}
-				if (storage.hasStock(result.code)) {
-					vscode.window.showInformationMessage(`${result.name}은(는) 이미 관심 종목에 있습니다.`);
-					return;
-				}
-				await storage.addStock(result);
-				treeView.message = undefined;
-				vscode.window.showInformationMessage(`${result.name} (${result.code}) 추가됨`);
-				dataService.start();
-			} else {
-				const searchResults = await searchStockByName(query);
-				if (searchResults.length === 0) {
-					vscode.window.showWarningMessage(`"${query}"에 대한 검색 결과가 없습니다.`);
-					return;
-				}
-
-				const picks = searchResults.map(r => ({
-					label: r.name,
-					description: `${r.code} · ${r.market}`,
-					code: r.code,
-				}));
-
-				const selected = await vscode.window.showQuickPick(picks, {
-					title: '종목 검색 결과',
-					placeHolder: '추가할 종목을 선택하세요',
-				});
-				if (!selected) {
-					return;
-				}
-
-				if (storage.hasStock(selected.code)) {
-					vscode.window.showInformationMessage(`${selected.label}은(는) 이미 관심 종목에 있습니다.`);
-					return;
-				}
-
-				await storage.addStock({ code: selected.code, name: selected.label });
-				treeView.message = undefined;
-				vscode.window.showInformationMessage(`${selected.label} (${selected.code}) 추가됨`);
-				dataService.start();
+			if (!/^\d{6}$/.test(query)) {
+				vscode.window.showWarningMessage('종목코드는 숫자 6자리여야 합니다.');
+				return;
 			}
+
+			const result = await searchStock(query);
+			if (!result) {
+				vscode.window.showWarningMessage(`종목코드 "${query}"를 찾을 수 없습니다.`);
+				return;
+			}
+			if (storage.hasStock(result.code)) {
+				vscode.window.showInformationMessage(`${result.name}은(는) 이미 관심 종목에 있습니다.`);
+				return;
+			}
+			await storage.addStock(result);
+			treeView.message = undefined;
+			vscode.window.showInformationMessage(`${result.name} (${result.code}) 추가됨`);
+			dataService.start();
 		} catch (err) {
 			vscode.window.showErrorMessage(`종목 추가 실패: ${err}`);
 		}

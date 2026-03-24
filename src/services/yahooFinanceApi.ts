@@ -63,7 +63,12 @@ async function probeSymbol(symbol: string): Promise<boolean> {
 		const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
 		const body = await httpGet(url);
 		const json = JSON.parse(body);
-		return json.chart?.result?.length > 0;
+		const result = json.chart?.result?.[0];
+		if (!result) { return false; }
+		// Filter out non-equity instruments (e.g. mutual funds that share the same code)
+		const type = result.meta?.instrumentType;
+		if (type && type !== 'EQUITY') { return false; }
+		return true;
 	} catch {
 		return false;
 	}
@@ -147,7 +152,7 @@ function chartToStockItem(data: ChartData): StockItem {
 	const volume = data.regularMarketVolume;
 	return {
 		code: stripSuffix(data.symbol),
-		name: data.longName ?? data.shortName ?? data.symbol,
+		name: data.shortName ?? data.longName ?? data.symbol,
 		price,
 		changePrice: change,
 		changeRate,
