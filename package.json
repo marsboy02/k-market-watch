@@ -2,7 +2,7 @@
   "name": "k-market-watch",
   "displayName": "K-Market Watch",
   "description": "Korean stock market monitoring tools in vscode",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "marsboy02",
   "repository": {
     "type": "git",
