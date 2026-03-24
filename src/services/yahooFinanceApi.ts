@@ -52,11 +52,6 @@ function formatKSTTime(unixSeconds: number): string {
 	return date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 }
 
-function mapMarketStatus(state: string | undefined): string {
-	if (state === 'REGULAR') { return 'OPEN'; }
-	return 'CLOSE';
-}
-
 function stripSuffix(symbol: string): string {
 	return symbol.replace(/\.(KS|KQ)$/i, '');
 }
@@ -93,105 +88,136 @@ async function resolveSymbol(code: string): Promise<string> {
 	throw new Error(`Symbol not found for code ${code}`);
 }
 
-// ── v7 Quote Batch Fetch ───────────────────────────────────────────
+// ── v8 Chart Fetch ────────────────────────────────────────────────
 
-interface YahooQuote {
+interface ChartData {
 	symbol: string;
 	shortName?: string;
 	longName?: string;
-	regularMarketPrice?: number;
-	regularMarketChange?: number;
-	regularMarketChangePercent?: number;
-	regularMarketVolume?: number;
-	regularMarketOpen?: number;
-	regularMarketDayHigh?: number;
-	regularMarketDayLow?: number;
-	regularMarketPreviousClose?: number;
-	regularMarketTime?: number;
-	marketState?: string;
+	regularMarketPrice: number;
+	regularMarketDayHigh: number;
+	regularMarketDayLow: number;
+	regularMarketVolume: number;
+	regularMarketTime: number;
+	chartPreviousClose: number;
+	openPrice: number;
+	regularPeriodStart: number;
+	regularPeriodEnd: number;
 }
 
-async function fetchQuotes(symbols: string[]): Promise<YahooQuote[]> {
-	if (symbols.length === 0) { return []; }
-	const joined = symbols.map(s => encodeURIComponent(s)).join(',');
-	const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${joined}`;
+async function fetchChart(symbol: string): Promise<ChartData> {
+	const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
 	const body = await httpGet(url);
 	const json = JSON.parse(body);
-	return json.quoteResponse?.result ?? [];
-}
-
-function quoteToStockItem(q: YahooQuote): StockItem {
-	const change = q.regularMarketChange ?? 0;
-	const price = q.regularMarketPrice ?? 0;
-	const volume = q.regularMarketVolume ?? 0;
+	const result = json.chart?.result?.[0];
+	if (!result) {
+		throw new Error(`No chart data for ${symbol}`);
+	}
+	const meta = result.meta;
+	const quote = result.indicators?.quote?.[0];
 	return {
-		code: stripSuffix(q.symbol),
-		name: q.longName ?? q.shortName ?? q.symbol,
-		price,
-		changePrice: change,
-		changeRate: parseFloat((q.regularMarketChangePercent ?? 0).toFixed(2)),
-		volume,
-		direction: deriveDirection(change),
-		marketStatus: mapMarketStatus(q.marketState),
-		openPrice: q.regularMarketOpen ?? 0,
-		highPrice: q.regularMarketDayHigh ?? 0,
-		lowPrice: q.regularMarketDayLow ?? 0,
-		tradingValue: volume * price,
-		localTradedAt: q.regularMarketTime ? formatKSTTime(q.regularMarketTime) : '',
+		symbol: meta.symbol,
+		shortName: meta.shortName,
+		longName: meta.longName,
+		regularMarketPrice: meta.regularMarketPrice ?? 0,
+		regularMarketDayHigh: meta.regularMarketDayHigh ?? 0,
+		regularMarketDayLow: meta.regularMarketDayLow ?? 0,
+		regularMarketVolume: meta.regularMarketVolume ?? 0,
+		regularMarketTime: meta.regularMarketTime ?? 0,
+		chartPreviousClose: meta.chartPreviousClose ?? 0,
+		openPrice: quote?.open?.[0] ?? 0,
+		regularPeriodStart: meta.currentTradingPeriod?.regular?.start ?? 0,
+		regularPeriodEnd: meta.currentTradingPeriod?.regular?.end ?? 0,
 	};
 }
 
-function quoteToMarketIndex(q: YahooQuote, code: string, name: string): MarketIndex {
-	const change = q.regularMarketChange ?? 0;
-	const value = q.regularMarketPrice ?? 0;
-	const volume = q.regularMarketVolume ?? 0;
+function chartMarketStatus(data: ChartData): string {
+	const now = Math.floor(Date.now() / 1000);
+	if (now >= data.regularPeriodStart && now < data.regularPeriodEnd) {
+		return 'OPEN';
+	}
+	return 'CLOSE';
+}
+
+function chartToStockItem(data: ChartData): StockItem {
+	const price = data.regularMarketPrice;
+	const prevClose = data.chartPreviousClose;
+	const change = prevClose ? price - prevClose : 0;
+	const changeRate = prevClose ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
+	const volume = data.regularMarketVolume;
+	return {
+		code: stripSuffix(data.symbol),
+		name: data.longName ?? data.shortName ?? data.symbol,
+		price,
+		changePrice: change,
+		changeRate,
+		volume,
+		direction: deriveDirection(change),
+		marketStatus: chartMarketStatus(data),
+		openPrice: data.openPrice,
+		highPrice: data.regularMarketDayHigh,
+		lowPrice: data.regularMarketDayLow,
+		tradingValue: volume * price,
+		localTradedAt: data.regularMarketTime ? formatKSTTime(data.regularMarketTime) : '',
+	};
+}
+
+function chartToMarketIndex(data: ChartData, code: string, name: string): MarketIndex {
+	const value = data.regularMarketPrice;
+	const prevClose = data.chartPreviousClose;
+	const change = prevClose ? value - prevClose : 0;
+	const changeRate = prevClose ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
+	const volume = data.regularMarketVolume;
 	return {
 		code,
 		name,
 		value,
 		changeValue: parseFloat(change.toFixed(2)),
-		changeRate: parseFloat((q.regularMarketChangePercent ?? 0).toFixed(2)),
+		changeRate,
 		direction: deriveDirection(change),
-		marketStatus: mapMarketStatus(q.marketState),
-		openPrice: q.regularMarketOpen ?? 0,
-		highPrice: q.regularMarketDayHigh ?? 0,
-		lowPrice: q.regularMarketDayLow ?? 0,
+		marketStatus: chartMarketStatus(data),
+		openPrice: data.openPrice,
+		highPrice: data.regularMarketDayHigh,
+		lowPrice: data.regularMarketDayLow,
 		volume,
 		tradingValue: volume * value,
-		localTradedAt: q.regularMarketTime ? formatKSTTime(q.regularMarketTime) : '',
+		localTradedAt: data.regularMarketTime ? formatKSTTime(data.regularMarketTime) : '',
 	};
 }
 
 // ── Public API ──────────────────────────────────────────────────────
 
 /**
- * Batch-fetch stocks by 6-digit Korean codes.
- * Resolves symbols first (with cache), then fetches all in one v7 call.
+ * Fetch stocks by 6-digit Korean codes.
+ * Resolves symbols first (with cache), then fetches each via v8 chart API.
  */
 export async function fetchStocks(codes: string[]): Promise<StockItem[]> {
-	// Resolve all symbols (cached ones are instant)
-	const symbols = await Promise.all(codes.map(c => resolveSymbol(c).catch(() => null)));
-	const validSymbols = symbols.filter((s): s is string => s !== null);
+	const symbolResults = await Promise.allSettled(codes.map(c => resolveSymbol(c)));
+	const validSymbols = symbolResults
+		.filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+		.map(r => r.value);
 
 	if (validSymbols.length === 0) { return []; }
 
-	const quotes = await fetchQuotes(validSymbols);
-	return quotes.map(quoteToStockItem);
+	const chartResults = await Promise.allSettled(validSymbols.map(s => fetchChart(s)));
+	return chartResults
+		.filter((r): r is PromiseFulfilledResult<ChartData> => r.status === 'fulfilled')
+		.map(r => chartToStockItem(r.value));
 }
 
 /**
- * Batch-fetch KOSPI and KOSDAQ indices.
+ * Fetch KOSPI and KOSDAQ indices via v8 chart API.
  */
 export async function fetchIndices(): Promise<MarketIndex[]> {
-	const indexSymbols = Object.values(INDEX_MAP);
-	const quotes = await fetchQuotes(indexSymbols);
+	const entries = Object.entries(INDEX_MAP);
+	const chartResults = await Promise.allSettled(entries.map(([, symbol]) => fetchChart(symbol)));
 
 	const results: MarketIndex[] = [];
-	for (const q of quotes) {
-		for (const [code, symbol] of Object.entries(INDEX_MAP)) {
-			if (q.symbol === symbol) {
-				results.push(quoteToMarketIndex(q, code, INDEX_NAMES[symbol] ?? code));
-			}
+	for (let i = 0; i < entries.length; i++) {
+		const [code, symbol] = entries[i];
+		const result = chartResults[i];
+		if (result.status === 'fulfilled') {
+			results.push(chartToMarketIndex(result.value, code, INDEX_NAMES[symbol] ?? code));
 		}
 	}
 	return results;
@@ -202,11 +228,7 @@ export async function fetchIndices(): Promise<MarketIndex[]> {
  */
 export async function fetchStock(code: string): Promise<StockItem> {
 	const symbol = await resolveSymbol(code);
-	const quotes = await fetchQuotes([symbol]);
-	if (quotes.length === 0) {
-		throw new Error(`No data for ${code}`);
-	}
-	return quoteToStockItem(quotes[0]);
+	return chartToStockItem(await fetchChart(symbol));
 }
 
 /**
