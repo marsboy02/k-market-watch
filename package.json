@@ -2,7 +2,7 @@
   "name": "k-market-watch",
   "displayName": "K-Market Watch",
   "description": "Korean stock market monitoring tools in vscode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "marsboy02",
   "repository": {
     "type": "git",
@@ -105,7 +105,10 @@
         },
         "k-market-watch.indexNameLanguage": {
           "type": "string",
-          "enum": ["korean", "english"],
+          "enum": [
+            "korean",
+            "english"
+          ],
           "default": "korean",
           "description": "지수 이름 표기 언어 (korean: 코스피/코스닥, english: KOSPI/KOSDAQ)"
         }
