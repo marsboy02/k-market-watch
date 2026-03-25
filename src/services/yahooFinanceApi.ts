@@ -4,8 +4,42 @@ import { StockItem, MarketIndex, WatchlistEntry, PriceDirection } from '../model
 const TIMEOUT_MS = 10000;
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)';
 
-// Cache: bare 6-digit code -> Yahoo symbol (e.g. '005930' -> '005930.KS')
-const symbolCache = new Map<string, string>();
+// Cache: bare 6-digit code -> Yahoo symbol with TTL (e.g. '005930' -> '005930.KS')
+const SYMBOL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const SYMBOL_CACHE_MAX_SIZE = 200;
+
+interface SymbolCacheEntry {
+	symbol: string;
+	cachedAt: number;
+}
+
+const symbolCache = new Map<string, SymbolCacheEntry>();
+
+function getCachedSymbol(code: string): string | undefined {
+	const entry = symbolCache.get(code);
+	if (!entry) { return undefined; }
+	if (Date.now() - entry.cachedAt > SYMBOL_CACHE_TTL_MS) {
+		symbolCache.delete(code);
+		return undefined;
+	}
+	return entry.symbol;
+}
+
+function setCachedSymbol(code: string, symbol: string): void {
+	if (symbolCache.size >= SYMBOL_CACHE_MAX_SIZE) {
+		// Evict oldest entry
+		let oldestKey: string | undefined;
+		let oldestTime = Infinity;
+		for (const [key, entry] of symbolCache) {
+			if (entry.cachedAt < oldestTime) {
+				oldestTime = entry.cachedAt;
+				oldestKey = key;
+			}
+		}
+		if (oldestKey) { symbolCache.delete(oldestKey); }
+	}
+	symbolCache.set(code, { symbol, cachedAt: Date.now() });
+}
 
 const INDEX_MAP: Record<string, string> = {
 	'KOSPI': '^KS11',
@@ -75,18 +109,18 @@ async function probeSymbol(symbol: string): Promise<boolean> {
 }
 
 async function resolveSymbol(code: string): Promise<string> {
-	const cached = symbolCache.get(code);
+	const cached = getCachedSymbol(code);
 	if (cached) { return cached; }
 
 	const ks = `${code}.KS`;
 	if (await probeSymbol(ks)) {
-		symbolCache.set(code, ks);
+		setCachedSymbol(code, ks);
 		return ks;
 	}
 
 	const kq = `${code}.KQ`;
 	if (await probeSymbol(kq)) {
-		symbolCache.set(code, kq);
+		setCachedSymbol(code, kq);
 		return kq;
 	}
 
@@ -162,7 +196,7 @@ function chartToStockItem(data: ChartData): StockItem {
 		openPrice: data.openPrice,
 		highPrice: data.regularMarketDayHigh,
 		lowPrice: data.regularMarketDayLow,
-		tradingValue: volume * price,
+		estimatedTradingValue: volume * price,
 		localTradedAt: data.regularMarketTime ? formatKSTTime(data.regularMarketTime) : '',
 	};
 }
@@ -185,26 +219,92 @@ function chartToMarketIndex(data: ChartData, code: string, name: string): Market
 		highPrice: data.regularMarketDayHigh,
 		lowPrice: data.regularMarketDayLow,
 		volume,
-		tradingValue: volume * value,
+		estimatedTradingValue: volume * value,
 		localTradedAt: data.regularMarketTime ? formatKSTTime(data.regularMarketTime) : '',
 	};
+}
+
+// ── Concurrency Limiter ─────────────────────────────────────────────
+
+const CONCURRENCY_LIMIT = 5;
+
+async function mapWithConcurrency<T, R>(
+	items: T[],
+	fn: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+	const results: PromiseSettledResult<R>[] = new Array(items.length);
+	let index = 0;
+
+	async function worker(): Promise<void> {
+		while (index < items.length) {
+			const i = index++;
+			try {
+				results[i] = { status: 'fulfilled', value: await fn(items[i]) };
+			} catch (reason) {
+				results[i] = { status: 'rejected', reason };
+			}
+		}
+	}
+
+	const workers = Array.from(
+		{ length: Math.min(CONCURRENCY_LIMIT, items.length) },
+		() => worker(),
+	);
+	await Promise.all(workers);
+	return results;
+}
+
+// ── Batch Symbol Resolution ─────────────────────────────────────────
+
+async function batchResolveUncached(codes: string[]): Promise<void> {
+	const uncached = codes.filter(c => !getCachedSymbol(c));
+	if (uncached.length === 0) { return; }
+
+	// Try search API to resolve multiple codes at once
+	const searchResults = await Promise.allSettled(
+		uncached.map(async (code) => {
+			try {
+				const encoded = encodeURIComponent(code);
+				const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encoded}&quotesCount=5&newsCount=0&lang=ko-KR&region=KR`;
+				const body = await httpGet(url);
+				const data = JSON.parse(body);
+				if (data.quotes) {
+					for (const q of data.quotes) {
+						const symbol: string = q.symbol ?? '';
+						if (symbol.endsWith('.KS') || symbol.endsWith('.KQ')) {
+							const resolved = stripSuffix(symbol);
+							if (resolved === code) {
+								setCachedSymbol(code, symbol);
+								return;
+							}
+						}
+					}
+				}
+			} catch {
+				// Fall through — resolveSymbol will handle via probe
+			}
+		}),
+	);
 }
 
 // ── Public API ──────────────────────────────────────────────────────
 
 /**
  * Fetch stocks by 6-digit Korean codes.
- * Resolves symbols first (with cache), then fetches each via v8 chart API.
+ * Batch-resolves uncached symbols via search API, then fetches with concurrency limit.
  */
 export async function fetchStocks(codes: string[]): Promise<StockItem[]> {
-	const symbolResults = await Promise.allSettled(codes.map(c => resolveSymbol(c)));
+	// Pre-resolve uncached symbols in batch via search API
+	await batchResolveUncached(codes);
+
+	const symbolResults = await mapWithConcurrency(codes, c => resolveSymbol(c));
 	const validSymbols = symbolResults
 		.filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
 		.map(r => r.value);
 
 	if (validSymbols.length === 0) { return []; }
 
-	const chartResults = await Promise.allSettled(validSymbols.map(s => fetchChart(s)));
+	const chartResults = await mapWithConcurrency(validSymbols, s => fetchChart(s));
 	return chartResults
 		.filter((r): r is PromiseFulfilledResult<ChartData> => r.status === 'fulfilled')
 		.map(r => chartToStockItem(r.value));
@@ -275,7 +375,7 @@ export async function searchStockByName(query: string): Promise<SearchResult[]> 
 			const market = symbol.endsWith('.KS') ? 'KOSPI' : 'KOSDAQ';
 
 			// Cache the resolved symbol
-			symbolCache.set(code, symbol);
+			setCachedSymbol(code, symbol);
 
 			items.push({
 				code,

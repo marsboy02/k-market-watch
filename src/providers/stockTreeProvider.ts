@@ -89,7 +89,7 @@ export class StockTreeProvider implements vscode.TreeDataProvider<TreeNode> {
 				new StockDetailItem('고가', formatNumber(data.highPrice)),
 				new StockDetailItem('저가', formatNumber(data.lowPrice)),
 				new StockDetailItem('거래량', formatNumber(data.volume)),
-				new StockDetailItem('거래대금', formatTradingValue(data.tradingValue)),
+				new StockDetailItem('거래대금(추정)', formatTradingValue(data.estimatedTradingValue)),
 				new StockDetailItem('상태', status),
 			];
 		}

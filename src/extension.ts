@@ -141,7 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
 			{ label: `$(triangle-up) 고가`, description: fmt(data.highPrice) },
 			{ label: `$(triangle-down) 저가`, description: fmt(data.lowPrice) },
 			{ label: `$(pulse) 거래량`, description: volFmt(data.volume) },
-			{ label: `$(credit-card) 거래대금`, description: valueFmt(data.tradingValue) },
+			{ label: `$(credit-card) 거래대금(추정)`, description: valueFmt(data.estimatedTradingValue) },
 			{ label: `$(info) 상태`, description: data.marketStatus },
 			{ label: `$(clock) 기준시각`, description: data.localTradedAt },
 		];

@@ -16,7 +16,7 @@ export interface StockItem {
 	openPrice: number;
 	highPrice: number;
 	lowPrice: number;
-	tradingValue: number;
+	estimatedTradingValue: number;
 	localTradedAt: string;
 }
 
@@ -32,7 +32,7 @@ export interface MarketIndex {
 	highPrice: number;
 	lowPrice: number;
 	volume: number;
-	tradingValue: number;
+	estimatedTradingValue: number;
 	localTradedAt: string;
 }
 

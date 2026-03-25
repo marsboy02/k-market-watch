@@ -10,6 +10,7 @@ const MIN_INTERVAL_SEC = 3;
 export class MarketDataService implements vscode.Disposable {
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private intervalMs: number;
+	private hasFetchedWhileClosed = false;
 
 	constructor(
 		private readonly storage: StorageService,
@@ -57,9 +58,13 @@ export class MarketDataService implements vscode.Disposable {
 		const watchlist = this.storage.getWatchlist();
 		this.treeProvider.setWatchlist(watchlist);
 
-		if (!isMarketOpen()) {
-			// 장 외 시간: 1회만 fetch해서 마지막 데이터 표시, 이후 skip
-			// 첫 로드 시에는 데이터를 가져옴
+		if (isMarketOpen()) {
+			this.hasFetchedWhileClosed = false;
+		} else {
+			if (this.hasFetchedWhileClosed) {
+				return;
+			}
+			this.hasFetchedWhileClosed = true;
 		}
 
 		const codes = watchlist.map(entry => entry.code);
